@@ -1,7 +1,7 @@
 """
-Main entry point for Meteo Outfit Advisor Agent
+Main entry point for Meteo Outfit Advisor Agent (Multi-Agent System)
 
-This module exports the root agent and provides local testing capability.
+This module exports the root agent (coordinator) and provides local testing capability.
 """
 
 import sys
@@ -11,7 +11,9 @@ import asyncio
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from agent import root_agent
+# Import multi-agent system
+from agents import root_agent
+
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -20,19 +22,19 @@ from google.genai import types
 __all__ = ['root_agent']
 
 # Local testing setup
-APP_NAME = "meteo_outfit_advisor"
+APP_NAME = "meteo_outfit_advisor_multiagent"
 USER_ID = "test_user"
 SESSION_ID = "test_session"
 
 
 async def test_agent_locally(query: str):
-    """Test the agent locally with a query"""
+    """Test the multi-agent system locally with a query"""
     print(f"\n{'='*60}")
-    print(f"🧪 Testing Meteo Agent")
+    print(f"🧪 Testing Multi-Agent Meteo System")
     print(f"{'='*60}\n")
     print(f"Query: {query}\n")
     print(f"{'─'*60}")
-    print("Agent:")
+    print("System:")
     print(f"{'─'*60}\n")
 
     # Setup runner
@@ -77,11 +79,15 @@ async def test_agent_locally(query: str):
 def main():
     """Main function for local testing"""
     print("="*60)
-    print("🌤️ Meteo Outfit Advisor Agent")
+    print("🌤️ Meteo Outfit Advisor - Multi-Agent System")
     print("="*60)
-    print(f"Agent: {root_agent.name}")
+    print(f"Coordinator: {root_agent.name}")
     print(f"Model: {root_agent.model}")
-    print(f"Tools: {len(root_agent.tools)}")
+    print(f"Specialist Agents: {len(root_agent.sub_agents)}")
+    print()
+    print("🤖 Specialist Team:")
+    for i, agent in enumerate(root_agent.sub_agents, 1):
+        print(f"   {i}. {agent.name} - {agent.description}")
     print()
 
     # Check environment variables
@@ -105,14 +111,15 @@ def main():
     print("✅ Environment configured")
     print()
 
-    # Example queries
+    # Example queries showing different agents
     example_queries = [
-        "Quels vêtements pour aujourd'hui à Paris?",
-        "Je vais au travail à Lyon, qu'est-ce que je mets?",
-        "Météo pour les 3 prochains jours à Marseille"
+        "🌤️  Quelle est la météo détaillée à Paris?",
+        "👔 Quelles couleurs porter aujourd'hui à Lyon?",
+        "✈️  Je pars 3 jours à Marseille, aide-moi à préparer ma valise",
+        "🏃 Équipement pour courir ce matin à Nice?"
     ]
 
-    print("Example queries:")
+    print("Example queries (different specialists):")
     for i, query in enumerate(example_queries, 1):
         print(f"  {i}. {query}")
     print()
