@@ -53,7 +53,7 @@ meteo-agent/
 ### 2. Installation des dépendances
 
 ```bash
-cd /Users/antoinelefetz/Projets/meteo-agent
+cd weather_app  # or wherever you cloned the repo
 
 # Créer un environnement virtuel (recommandé)
 python3 -m venv venv

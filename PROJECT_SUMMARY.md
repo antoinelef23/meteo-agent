@@ -58,7 +58,7 @@ meteo-agent/
 ### 1. Quick Local Test (30 seconds)
 
 ```bash
-cd /Users/antoinelefetz/Projets/meteo-agent
+cd weather_app  # or wherever you cloned the repo
 
 # Setup environment
 cp .env.example .env

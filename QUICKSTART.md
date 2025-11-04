@@ -22,7 +22,7 @@ Déployez votre agent de recommandation vestimentaire en 5 minutes! 🚀
 ### 2. Configuration
 
 ```bash
-cd /Users/antoinelefetz/Projets/meteo-agent
+cd weather_app  # or wherever you cloned the repo
 
 # Copier le template
 cp .env.example .env
