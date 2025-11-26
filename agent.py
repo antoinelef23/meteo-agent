@@ -113,15 +113,11 @@ def get_weather_forecast_with_advice(
 
 # Create ADK tools
 weather_outfit_tool = FunctionTool(
-    name="get_weather_and_outfit",
-    description="Obtenir la météo actuelle et des conseils vestimentaires pour une ville",
-    function=get_weather_and_outfit_advice
+    get_weather_and_outfit_advice
 )
 
 forecast_tool = FunctionTool(
-    name="get_forecast_with_advice",
-    description="Obtenir les prévisions météo et conseils vestimentaires pour les prochains jours",
-    function=get_weather_forecast_with_advice
+    get_weather_forecast_with_advice
 )
 
 # Agent instructions

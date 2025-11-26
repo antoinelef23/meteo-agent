@@ -1,140 +1,138 @@
 """
-Main entry point for Meteo Outfit Advisor Agent (Multi-Agent System)
-
-This module exports the root agent (coordinator) and provides local testing capability.
+FastAPI server for Meteo Outfit Advisor Agent
 """
-
-import sys
 import os
-import asyncio
+import sys
+from typing import Optional
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Import multi-agent system
-from agents import root_agent
+from agent import meteo_agent
+from google.adk.runner import Runner
+from google.adk.sessions import SessionService, InMemorySession
 
-from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
-from google.genai import types
+# Create FastAPI app
+app = FastAPI(
+    title="Meteo Outfit Advisor",
+    description="AI agent that recommends outfits based on weather conditions",
+    version="1.0.0"
+)
 
-# Export for Agent Engine
-__all__ = ['root_agent']
+# Initialize ADK Runner and Session Service
+session_service = SessionService(
+    InMemorySession()
+)
 
-# Local testing setup
-APP_NAME = "meteo_outfit_advisor_multiagent"
-USER_ID = "test_user"
-SESSION_ID = "test_session"
+runner = Runner(
+    agent=meteo_agent,
+    session_service=session_service
+)
 
+# Request models
+class QueryRequest(BaseModel):
+    query: str
+    user_id: Optional[str] = "anonymous"
 
-async def test_agent_locally(query: str):
-    """Test the multi-agent system locally with a query"""
-    print(f"\n{'='*60}")
-    print(f"🧪 Testing Multi-Agent Meteo System")
-    print(f"{'='*60}\n")
-    print(f"Query: {query}\n")
-    print(f"{'─'*60}")
-    print("System:")
-    print(f"{'─'*60}\n")
+class HealthResponse(BaseModel):
+    status: str
+    message: str
+    model: str
 
-    # Setup runner
-    session_service = InMemorySessionService()
-    runner = Runner(
-        app_name=APP_NAME,
-        agent=root_agent,
-        session_service=session_service
-    )
+@app.get("/", response_model=HealthResponse)
+async def root():
+    """Root endpoint - health check"""
+    return {
+        "status": "healthy",
+        "message": "Meteo Outfit Advisor is running!",
+        "model": meteo_agent.model
+    }
 
-    # Create session
-    await session_service.create_session(
-        app_name=APP_NAME,
-        user_id=USER_ID,
-        session_id=SESSION_ID
-    )
+@app.get("/health", response_model=HealthResponse)
+async def health():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "message": "Service is operational",
+        "model": meteo_agent.model
+    }
 
-    # Create message
-    user_message = types.Content(parts=[types.Part(text=query)])
+@app.post("/query")
+async def query_agent(request: QueryRequest):
+    """
+    Query the agent with a question about weather and outfit recommendations.
 
-    # Run agent and collect response
-    response_text = ""
-    async for event in runner.run_async(
-        user_id=USER_ID,
-        session_id=SESSION_ID,
-        new_message=user_message
-    ):
-        if hasattr(event, 'content') and event.content:
-            if hasattr(event.content, 'parts'):
-                for part in event.content.parts:
-                    if hasattr(part, 'text') and part.text:
-                        print(part.text, end='', flush=True)
-                        response_text += part.text
+    Example queries:
+    - "Quels vêtements pour aujourd'hui à Paris?"
+    - "Je vais au travail à Lyon, qu'est-ce que je mets?"
+    - "Météo pour les 5 prochains jours à Marseille"
+    """
+    try:
+        # Create a unique session ID for this user
+        session_id = request.user_id or "anonymous"
 
-    print(f"\n\n{'='*60}")
-    print("✅ Test complete!")
-    print(f"{'='*60}\n")
+        # Use Runner to invoke the agent
+        # The Runner handles InvocationContext creation automatically
+        events = []
+        async for event in runner.run_async(
+            user_input=request.query,
+            session_id=session_id
+        ):
+            events.append(event)
 
-    return response_text
+        # Extract the final response from events
+        response_text = ""
+        for event in events:
+            if hasattr(event, 'text') and event.text:
+                response_text += event.text
+            elif hasattr(event, 'content') and event.content:
+                response_text += str(event.content)
 
+        if not response_text:
+            response_text = str(events[-1]) if events else "No response generated"
 
-def main():
-    """Main function for local testing"""
-    print("="*60)
-    print("🌤️ Meteo Outfit Advisor - Multi-Agent System")
-    print("="*60)
-    print(f"Coordinator: {root_agent.name}")
-    print(f"Model: {root_agent.model}")
-    print(f"Specialist Agents: {len(root_agent.sub_agents)}")
-    print()
-    print("🤖 Specialist Team:")
-    for i, agent in enumerate(root_agent.sub_agents, 1):
-        print(f"   {i}. {agent.name} - {agent.description}")
-    print()
+        return {
+            "query": request.query,
+            "response": response_text,
+            "user_id": request.user_id
+        }
 
-    # Check environment variables
-    from dotenv import load_dotenv
-    load_dotenv()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Agent error: {str(e)}")
 
-    api_key = os.getenv("GOOGLE_API_KEY")
-    weather_key = os.getenv("OPENWEATHER_API_KEY")
-
-    if not api_key:
-        print("⚠️  GOOGLE_API_KEY not set in .env file")
-        print("   Please copy .env.example to .env and add your API key")
-        return
-
-    if not weather_key:
-        print("⚠️  OPENWEATHER_API_KEY not set in .env file")
-        print("   Get a free key at: https://openweathermap.org/api")
-        print("   Then add it to your .env file")
-        return
-
-    print("✅ Environment configured")
-    print()
-
-    # Example queries showing different agents
-    example_queries = [
-        "🌤️  Quelle est la météo détaillée à Paris?",
-        "👔 Quelles couleurs porter aujourd'hui à Lyon?",
-        "✈️  Je pars 3 jours à Marseille, aide-moi à préparer ma valise",
-        "🏃 Équipement pour courir ce matin à Nice?"
-    ]
-
-    print("Example queries (different specialists):")
-    for i, query in enumerate(example_queries, 1):
-        print(f"  {i}. {query}")
-    print()
-
-    # Interactive or example mode
-    import sys
-    if len(sys.argv) > 1:
-        # Use command line argument as query
-        query = " ".join(sys.argv[1:])
-        asyncio.run(test_agent_locally(query))
-    else:
-        # Run first example
-        print("Running example query (use 'python main.py \"your query\"' for custom queries)\n")
-        asyncio.run(test_agent_locally(example_queries[0]))
-
+@app.get("/info")
+async def agent_info():
+    """Get information about the agent"""
+    return {
+        "name": meteo_agent.name,
+        "description": meteo_agent.description,
+        "model": meteo_agent.model,
+        "tools": [
+            {
+                "name": "get_weather_and_outfit",
+                "description": "Get current weather and outfit recommendations"
+            },
+            {
+                "name": "get_forecast_with_advice",
+                "description": "Get multi-day forecast with outfit advice"
+            }
+        ],
+        "example_queries": [
+            "Quels vêtements pour aujourd'hui à Paris?",
+            "Je vais au travail à Lyon, qu'est-ce que je mets?",
+            "Météo pour les 5 prochains jours à Marseille",
+            "Quel outfit pour faire du sport à Bordeaux?"
+        ]
+    }
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)

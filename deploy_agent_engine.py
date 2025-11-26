@@ -57,9 +57,9 @@ def check_prerequisites():
         print("   The agent needs this to work. Please add it to .env")
         return False
 
-    if not os.getenv("OPENWEATHER_API_KEY"):
-        print("⚠️  OPENWEATHER_API_KEY not set in .env file")
-        print("   Get a free key at: https://openweathermap.org/api")
+    if not os.getenv("WEATHERAPI_KEY"):
+        print("⚠️  WEATHERAPI_KEY not set in .env file")
+        print("   Get a free key at: https://www.weatherapi.com/my/")
         return False
 
     print(f"✅ API keys configured")
@@ -119,7 +119,7 @@ def deploy_agent():
         print("Wrapping agent in AdkApp...")
         app = agent_engines.AdkApp(
             agent=root_agent,
-            enable_tracing=True
+            enable_tracing=False  # Disable tracing to reduce dependencies
         )
 
         # Deploy to Agent Engine
@@ -128,7 +128,9 @@ def deploy_agent():
         remote_app = agent_engines.create(
             agent_engine=app,
             display_name=AGENT_NAME,
-            description="AI agent that recommends outfits based on weather conditions"
+            description="AI agent that recommends outfits based on weather conditions",
+            requirements=["google-adk==1.14.1", "google-genai>=1.46.0", "requests>=2.31.0", "python-dotenv>=1.0.0", "python-dateutil>=2.8.0"],
+            extra_packages=["agent.py", "tools"]
         )
 
         # Get deployment details
@@ -217,16 +219,20 @@ def main():
     """Main deployment function"""
     import argparse
 
+    # Use module-level variables as defaults
+    global PROJECT_ID, LOCATION, STAGING_BUCKET
+    default_project = PROJECT_ID
+    default_location = LOCATION
+
     parser = argparse.ArgumentParser(description="Deploy Meteo Outfit Advisor to Agent Engine")
     parser.add_argument("--delete", action="store_true", help="Delete a deployed agent")
     parser.add_argument("--resource-id", help="Resource ID for delete operation")
-    parser.add_argument("--project", default=PROJECT_ID, help=f"GCP Project ID (default: {PROJECT_ID})")
-    parser.add_argument("--location", default=LOCATION, help=f"Location (default: {LOCATION})")
+    parser.add_argument("--project", default=default_project, help=f"GCP Project ID (default: {default_project})")
+    parser.add_argument("--location", default=default_location, help=f"Location (default: {default_location})")
 
     args = parser.parse_args()
 
     # Update global config
-    global PROJECT_ID, LOCATION, STAGING_BUCKET
     PROJECT_ID = args.project
     LOCATION = args.location
     STAGING_BUCKET = f"gs://{PROJECT_ID}-agent-staging"

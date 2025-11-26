@@ -153,17 +153,20 @@ def main():
     """Main test function"""
     import argparse
 
+    global PROJECT_ID, LOCATION, STAGING_BUCKET
+    default_project = PROJECT_ID
+    default_location = LOCATION
+
     parser = argparse.ArgumentParser(description="Test Meteo Outfit Advisor on Agent Engine")
     parser.add_argument("--resource-id", required=True, help="Resource ID of the deployed agent")
     parser.add_argument("--query", help="Single query to test")
     parser.add_argument("--interactive", "-i", action="store_true", help="Interactive mode")
-    parser.add_argument("--project", default=PROJECT_ID, help=f"GCP Project ID (default: {PROJECT_ID})")
-    parser.add_argument("--location", default=LOCATION, help=f"Location (default: {LOCATION})")
+    parser.add_argument("--project", default=default_project, help=f"GCP Project ID (default: {default_project})")
+    parser.add_argument("--location", default=default_location, help=f"Location (default: {default_location})")
 
     args = parser.parse_args()
 
     # Update global config
-    global PROJECT_ID, LOCATION, STAGING_BUCKET
     PROJECT_ID = args.project
     LOCATION = args.location
     STAGING_BUCKET = f"gs://{PROJECT_ID}-agent-staging"
