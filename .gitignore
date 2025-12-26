@@ -9,8 +9,30 @@ venv/
 ENV/
 env/
 
-# Environment variables
+# Environment variables & Secrets
 .env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Google Cloud credentials
+credentials.json
+service-account-*.json
+service_account_key.json
+*-key.json
+*.pem
+*.p12
+*.pfx
+application_default_credentials.json
+
+# API keys and tokens
+.api-keys
+.tokens
+**/secrets.yaml
+**/secrets.yml
+!secrets.yaml.template
+!secrets.yml.example
 
 # IDEs
 .vscode/

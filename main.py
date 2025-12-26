@@ -16,8 +16,9 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from agent import meteo_agent
-from google.adk.runner import Runner
-from google.adk.sessions import SessionService, InMemorySession
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai.types import Content, Part
 
 # Create FastAPI app
 app = FastAPI(
@@ -27,11 +28,10 @@ app = FastAPI(
 )
 
 # Initialize ADK Runner and Session Service
-session_service = SessionService(
-    InMemorySession()
-)
+session_service = InMemorySessionService()
 
 runner = Runner(
+    app_name="meteo_outfit_advisor",
     agent=meteo_agent,
     session_service=session_service
 )
@@ -76,32 +76,58 @@ async def query_agent(request: QueryRequest):
     """
     try:
         # Create a unique session ID for this user
-        session_id = request.user_id or "anonymous"
+        user_id = request.user_id or "anonymous"
+        session_id = f"session_{user_id}"
+
+        # Create session if it doesn't exist
+        existing_session = await session_service.get_session(
+            app_name="meteo_outfit_advisor",
+            user_id=user_id,
+            session_id=session_id
+        )
+
+        if not existing_session:
+            # Session doesn't exist, create it
+            await session_service.create_session(
+                app_name="meteo_outfit_advisor",
+                user_id=user_id,
+                session_id=session_id
+            )
+
+        # Create Content object with user query
+        message = Content(
+            role="user",
+            parts=[Part(text=request.query)]
+        )
 
         # Use Runner to invoke the agent
-        # The Runner handles InvocationContext creation automatically
         events = []
         async for event in runner.run_async(
-            user_input=request.query,
-            session_id=session_id
+            user_id=user_id,
+            session_id=session_id,
+            new_message=message
         ):
             events.append(event)
 
-        # Extract the final response from events
+        # Extract the final text response from events
         response_text = ""
         for event in events:
-            if hasattr(event, 'text') and event.text:
-                response_text += event.text
-            elif hasattr(event, 'content') and event.content:
-                response_text += str(event.content)
+            if hasattr(event, 'content') and event.content:
+                content = event.content
+                # Check if content has parts
+                if hasattr(content, 'parts'):
+                    for part in content.parts:
+                        # Get text from Part objects
+                        if hasattr(part, 'text') and part.text:
+                            response_text = part.text  # Keep the latest text response
 
         if not response_text:
-            response_text = str(events[-1]) if events else "No response generated"
+            response_text = "No response generated"
 
         return {
             "query": request.query,
             "response": response_text,
-            "user_id": request.user_id
+            "user_id": user_id
         }
 
     except Exception as e:
